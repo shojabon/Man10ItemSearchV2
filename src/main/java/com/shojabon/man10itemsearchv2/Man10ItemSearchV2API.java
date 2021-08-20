@@ -1,12 +1,16 @@
 package com.shojabon.man10itemsearchv2;
 
+import com.shojabon.man10itemsearchv2.data.SearchItemData;
 import net.md_5.bungee.chat.ComponentSerializer;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.block.Chest;
 import org.bukkit.block.DoubleChest;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import utils.SItemStack;
 
+import java.awt.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -33,7 +37,7 @@ public class Man10ItemSearchV2API {
         if(type.equals("CRAFTING") || type.equals("PLAYER")){
             return type + "|" + name;
         }
-        return type +"|"+l.getWorld().getName() + "|"+l.getBlockX() + "|"+ l.getBlockY() + "|"+ l.getBlockZ();
+        return plugin.server + "|" + type +"|"+l.getWorld().getName() + "|"+l.getBlockX() + "|"+ l.getBlockY() + "|"+ l.getBlockZ();
     }
 
     //core functions
@@ -51,6 +55,7 @@ public class Man10ItemSearchV2API {
         payload.put("final_editor_name", name);
         payload.put("final_editor_uuid", uuid.toString());
         payload.put("container_type", containerType);
+        payload.put("server", plugin.server);
         payload.put("world", l.getWorld().getName());
         payload.put("x", l.getBlockX());
         payload.put("y", l.getBlockY());
@@ -111,6 +116,53 @@ public class Man10ItemSearchV2API {
         }
         plugin.mysql.execute(plugin.mysql.buildInsertQuery(payloads, "item_database"));
 
+    }
+
+    public ArrayList<SearchItemData> getItems(String typeHash, String server, String order){
+        boolean needsAnd = false;
+        StringBuilder query = new StringBuilder("SELECT * FROM item_database WHERE ");
+        if(typeHash != null){
+            query.append("item_hash = '").append(typeHash).append("'");
+            needsAnd = true;
+        }
+        if(server != null && !server.equalsIgnoreCase("all")){
+            if(needsAnd){
+                query.append(" AND ");
+            }
+            query.append("server = '").append(server).append("'");
+            needsAnd = true;
+        }
+        if(order != null){
+            query.append("ORDER BY ").append(order).append(" DESC");
+        }
+        ArrayList<SearchItemData> result = new ArrayList<>();
+
+        ResultSet rs = plugin.mysql.query(String.valueOf(query));
+        try{
+            while(rs.next()){
+                SearchItemData data = new SearchItemData(rs.getString("final_editor_name"), rs.getString("final_editor_uuid"),
+                        rs.getString("container_type"),
+                        rs.getInt("slot"),
+                        rs.getInt("amount"),
+                        rs.getString("server"),
+                        null,
+                        rs.getString("date_time"),
+                        rs.getString("world"),
+                        rs.getInt("x"),
+                        rs.getInt("y"),
+                        rs.getInt("z"));
+                if(plugin.server.equalsIgnoreCase(rs.getString("server"))){
+                    World w = plugin.getServer().getWorld(rs.getString("world"));
+                    if(w != null){
+                        data.location = new Location(w, rs.getDouble("x"), rs.getDouble("y"), rs.getDouble("z"));
+                    }
+                }
+                result.add(data);
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+        return result;
     }
 
     //internal functions

@@ -42,7 +42,7 @@ public class ListeningEvents implements @NotNull Listener {
         InventoryHolder inv = e.getInventory().getHolder();
         Inventory inventory;
 
-        if(inv instanceof StorageMinecart || inv instanceof HopperMinecart) {
+        if(inv instanceof StorageMinecart || inv instanceof HopperMinecart || inv == null) {
             return;
         }
 

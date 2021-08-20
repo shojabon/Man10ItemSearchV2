@@ -4,4 +4,4 @@ main: com.shojabon.man10itemsearchv2.Man10ItemSearchV2
 api-version: 1.17
 authors: [ Sho0 ]
 commands:
-  test:
+  msearch:
