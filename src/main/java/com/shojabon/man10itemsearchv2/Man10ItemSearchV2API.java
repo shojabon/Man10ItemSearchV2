@@ -3,13 +3,12 @@ package com.shojabon.man10itemsearchv2;
 import com.shojabon.man10itemsearchv2.data.SearchContainerData;
 import com.shojabon.man10itemsearchv2.data.SearchItemData;
 import com.shojabon.man10itemsearchv2.data.UserItemCountData;
-import net.md_5.bungee.chat.ComponentSerializer;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Chest;
 import org.bukkit.block.DoubleChest;
 import org.bukkit.inventory.Inventory;
-import utils.MySQLManager;
+import utils.MySQLAPI;
 import utils.SItemStack;
 
 import java.sql.ResultSet;
@@ -93,7 +92,7 @@ public class Man10ItemSearchV2API {
                 localPayload.put("full_item_hash", md5);
                 localPayload.put("item_hash", item.getItemTypeMD5());
                 localPayload.put("item_type", item.getType().name());
-                localPayload.put("item_name", ComponentSerializer.toString(item.getDisplayName()));
+                //localPayload.put("item_name", ComponentSerializer.toString(item.getDisplayName()));
                 localPayload.put("amount", item.getAmount());
 
 //            if(item.getType() == Material.SHULKER_BOX){
@@ -121,7 +120,7 @@ public class Man10ItemSearchV2API {
             if(payloads.size() == 0){
                 return;
             }
-            plugin.mysql.execute(plugin.mysql.buildInsertQuery(payloads, "item_database"));
+            plugin.mysqlExecutionQueue.add(MySQLAPI.buildInsertQuery(payloads, "item_database"));
         });
 
     }
@@ -137,15 +136,15 @@ public class Man10ItemSearchV2API {
             if(needsAnd){
                 query.append(" AND ");
             }
-            query.append("server = '").append(MySQLManager.escapeString(server)).append("'");
+            query.append("server = '").append(MySQLAPI.escapeString(server)).append("'");
             needsAnd = true;
         }
         if(order != null){
             query.append("ORDER BY ").append(order).append(" DESC");
         }
         ArrayList<SearchItemData> result = new ArrayList<>();
-
-        ResultSet rs = plugin.mysql.query(String.valueOf(query));
+        MySQLAPI manager = new MySQLAPI(plugin);
+        ResultSet rs = manager.query(String.valueOf(query));
         try{
             while(rs.next()){
                 SearchItemData data = new SearchItemData(rs.getString("final_editor_name"), rs.getString("final_editor_uuid"),
@@ -169,6 +168,7 @@ public class Man10ItemSearchV2API {
                 result.add(data);
             }
             rs.close();
+            manager.close();
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
@@ -202,18 +202,20 @@ public class Man10ItemSearchV2API {
             if(needsAnd){
                 query.append(" AND ");
             }
-            query.append("server = '").append(MySQLManager.escapeString(server)).append("'");
+            query.append("server = '").append(MySQLAPI.escapeString(server)).append("'");
             needsAnd = true;
         }
         query.append(" GROUP BY final_editor_uuid ORDER BY total DESC");
 
         ArrayList<UserItemCountData> result = new ArrayList<>();
-        ResultSet rs = plugin.mysql.query(String.valueOf(query));
+        MySQLAPI manager = new MySQLAPI(plugin);
+        ResultSet rs = manager.query(String.valueOf(query));
         try{
             while(rs.next()){
                 result.add(new UserItemCountData(rs.getString("final_editor_name"), rs.getString("final_editor_uuid"), rs.getInt("total")));
             }
             rs.close();
+            manager.close();
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
@@ -233,12 +235,12 @@ public class Man10ItemSearchV2API {
         }
         ids.deleteCharAt(ids.length()-1);
         ids.append(")");
-        return plugin.mysql.execute(query + ids);
+        return plugin.mysqlExecutionQueue.add(query + ids);
     }
     public void deleteRecordInLocation(Location l, String containerType){
         plugin.threadPool.execute(()->{
             String query = "DELETE FROM item_database WHERE `container_type`='" + containerType + "' AND `world`='" + l.getWorld().getName() + "' AND `x` =" + l.getBlockX() + " AND `y` = " + l.getBlockY() + " AND `z` =" + l.getBlockZ() + ";";
-            plugin.mysql.execute(query);
+            plugin.mysqlExecutionQueue.add(query);
         });
     }
 
@@ -246,13 +248,15 @@ public class Man10ItemSearchV2API {
         if(cache.containsKey(containerId)){
            return cache.get(containerId);
         }
+        MySQLAPI manager = new MySQLAPI(plugin);
         HashMap<Integer, String> container = new HashMap<>();
         try {
-            ResultSet rs = plugin.mysql.query("SELECT slot,full_item_hash FROM item_database WHERE container_id = \"" + containerId + "\" LIMIT 200;");
+            ResultSet rs = manager.query("SELECT slot,full_item_hash FROM item_database WHERE container_id = \"" + containerId + "\" LIMIT 200;");
             while(rs.next()){
                 container.put(rs.getInt("slot"), rs.getString("full_item_hash"));
             }
             rs.close();
+            manager.close();
         } catch (SQLException e) {
             e.printStackTrace();
         }
