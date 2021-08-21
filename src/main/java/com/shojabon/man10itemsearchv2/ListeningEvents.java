@@ -11,6 +11,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryInteractEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.*;
 import org.jetbrains.annotations.NotNull;
@@ -38,10 +39,24 @@ public class ListeningEvents implements @NotNull Listener {
     }
 
     @EventHandler
+    public void onClick(InventoryClickEvent e){
+        if(plugin.userInPreview.contains(e.getWhoClicked().getUniqueId())){
+            e.setCancelled(true);
+        }
+    }
+
+    @EventHandler
     public void onInventoryClose(InventoryCloseEvent e){
+
+        //do not update record if user is in preview
+        if(plugin.userInPreview.contains(e.getPlayer().getUniqueId())){
+            plugin.userInPreview.remove(e.getPlayer().getUniqueId());
+
+            return;
+        }
+
         InventoryHolder inv = e.getInventory().getHolder();
         Inventory inventory;
-
         if(inv instanceof StorageMinecart || inv instanceof HopperMinecart || inv == null) {
             return;
         }
@@ -54,7 +69,7 @@ public class ListeningEvents implements @NotNull Listener {
                 return;
             }
             Block b = l.getBlock();
-            if(b.getType() != Material.CHEST){
+            if(b.getType() != Material.CHEST && b.getType() != Material.TRAPPED_CHEST){
                 return;
             }
         }
@@ -75,7 +90,6 @@ public class ListeningEvents implements @NotNull Listener {
             inventory = e.getInventory();
         }
         plugin.api.createLog(inventory, e.getInventory().getLocation(), e.getPlayer().getName(), e.getPlayer().getUniqueId(), e.getInventory().getType().name());
-
     }
 
 }

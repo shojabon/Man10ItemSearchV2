@@ -7,6 +7,7 @@ public class SearchItemData {
     public String finalEditorName;
     public String finalEditorUUID;
     public String containerType;
+    public String containerId;
     public int slot;
     public int amount;
     public String server;
@@ -17,10 +18,11 @@ public class SearchItemData {
     public int y;
     public int z;
 
-    public SearchItemData(String finalEditorName, String finalEditorUUID, String containerType, int slot, int amount, String server, Location location, String dateTime, String world, int x, int y, int z){
+    public SearchItemData(String finalEditorName, String finalEditorUUID, String containerType, String containerId, int slot, int amount, String server, Location location, String dateTime, String world, int x, int y, int z){
         this.finalEditorName = finalEditorName;
         this.finalEditorUUID = finalEditorUUID;
         this.containerType = containerType;
+        this.containerId = containerId;
         this.slot = slot;
         this.server = server;
         this.location = location;

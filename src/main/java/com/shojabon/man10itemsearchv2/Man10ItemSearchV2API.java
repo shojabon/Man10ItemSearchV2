@@ -1,16 +1,17 @@
 package com.shojabon.man10itemsearchv2;
 
+import com.shojabon.man10itemsearchv2.data.SearchContainerData;
 import com.shojabon.man10itemsearchv2.data.SearchItemData;
+import com.shojabon.man10itemsearchv2.data.UserItemCountData;
 import net.md_5.bungee.chat.ComponentSerializer;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Chest;
 import org.bukkit.block.DoubleChest;
-import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import utils.MySQLManager;
 import utils.SItemStack;
 
-import java.awt.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -43,82 +44,89 @@ public class Man10ItemSearchV2API {
     //core functions
 
     public void createLog(Inventory inv, Location l, String name, UUID uuid, String containerType){
-        HashMap<String, Object> payload = new HashMap<>();
-        String containerId = generateContainerId(containerType, l, name);
+        plugin.threadPool.execute(()-> {
+            HashMap<String, Object> payload = new HashMap<>();
+            String containerId = generateContainerId(containerType, l, name);
 
 
-        HashMap<Integer, String> localCache = getCache(containerId);
+            HashMap<Integer, String> localCache = getCache(containerId);
 
+            //headers
+            payload.put("container_id", containerId);
+            payload.put("final_editor_name", name);
+            payload.put("final_editor_uuid", uuid.toString());
+            payload.put("container_type", containerType);
+            payload.put("server", plugin.server);
+            payload.put("world", l.getWorld().getName());
+            payload.put("x", l.getBlockX());
+            payload.put("y", l.getBlockY());
+            payload.put("z", l.getBlockZ());
 
-        //headers
-        payload.put("container_id", containerId);
-        payload.put("final_editor_name", name);
-        payload.put("final_editor_uuid", uuid.toString());
-        payload.put("container_type", containerType);
-        payload.put("server", plugin.server);
-        payload.put("world", l.getWorld().getName());
-        payload.put("x", l.getBlockX());
-        payload.put("y", l.getBlockY());
-        payload.put("z", l.getBlockZ());
+            ArrayList<HashMap<String, Object>> payloads = new ArrayList<>();
+            ArrayList<Integer> deleteSlot = new ArrayList<>();
+            for(int i = 0; i < inv.getSize(); i++){
+                HashMap<String, Object> localPayload = new HashMap<>(payload);
 
-        ArrayList<HashMap<String, Object>> payloads = new ArrayList<>();
-        ArrayList<Integer> deleteSlot = new ArrayList<>();
-        for(int i = 0; i < inv.getSize(); i++){
-            HashMap<String, Object> localPayload = new HashMap<>(payload);
-
-            if(inv.getItem(i) == null){
-                //check differences
-                if(localCache.containsKey(i)){
-                    deleteSlot.add(i);
-                }
-                continue;
-            }
-            SItemStack item = new SItemStack(inv.getItem(i));
-            String md5 = item.getMD5();
-
-            if(localCache.containsKey(i)){
-                if(localCache.get(i).equals(md5)){
-                    //same item
+                if(inv.getItem(i) == null){
+                    //check differences
+                    if(localCache.containsKey(i)){
+                        deleteSlot.add(i);
+                    }
                     continue;
-                }else{
-                    //contains different item
-                    deleteSlot.add(i);
                 }
+                SItemStack item = new SItemStack(inv.getItem(i));
+                String md5 = item.getMD5();
+
+                if(localCache.containsKey(i)){
+                    if(localCache.get(i).equals(md5)){
+                        //same item
+                        continue;
+                    }else{
+                        //contains different item
+                        deleteSlot.add(i);
+                    }
+                }
+
+
+                //add item payload
+                localPayload.put("slot", i);
+                localPayload.put("full_item_hash", md5);
+                localPayload.put("item_hash", item.getItemTypeMD5());
+                localPayload.put("item_type", item.getType().name());
+                localPayload.put("item_name", ComponentSerializer.toString(item.getDisplayName()));
+                localPayload.put("amount", item.getAmount());
+
+//            if(item.getType() == Material.SHULKER_BOX){
+//                BlockStateMeta bm = (BlockStateMeta) item.getItemStack().getItemMeta();
+//                ShulkerBox sb = (ShulkerBox) bm.getBlockState();
+//
+//            }
+                payloads.add(localPayload);
             }
 
+            //update cache
 
-            //add item payload
-            localPayload.put("slot", i);
-            localPayload.put("full_item_hash", md5);
-            localPayload.put("item_hash", item.getItemTypeMD5());
-            localPayload.put("item_type", item.getType().name());
-            localPayload.put("item_name", ComponentSerializer.toString(item.getDisplayName()));
-            localPayload.put("amount", item.getAmount());
+            for(int slotToDelete: deleteSlot){
+                cache.get(containerId).remove(slotToDelete);
+            }
+            for(HashMap<String, Object> obj: payloads){
+                cache.get(containerId).put((Integer) obj.get("slot"), String.valueOf(obj.get("full_item_hash")));
+            }
 
-
-            payloads.add(localPayload);
-        }
-
-        //update cache
-        for(int slotToDelete: deleteSlot){
-            cache.get(containerId).remove(slotToDelete);
-        }
-        for(HashMap<String, Object> obj: payloads){
-            cache.get(containerId).put((Integer) obj.get("slot"), String.valueOf(obj.get("item_hash")));
-        }
 //        if(cache.get(containerId).size() == 0){
 //            cache.remove(containerId);
 //        }
-        deleteRecords(containerId, deleteSlot);
+            deleteRecords(containerId, deleteSlot);
 
-        if(payloads.size() == 0){
-            return;
-        }
-        plugin.mysql.execute(plugin.mysql.buildInsertQuery(payloads, "item_database"));
+            if(payloads.size() == 0){
+                return;
+            }
+            plugin.mysql.execute(plugin.mysql.buildInsertQuery(payloads, "item_database"));
+        });
 
     }
 
-    public ArrayList<SearchItemData> getItems(String typeHash, String server, String order){
+    public ArrayList<SearchContainerData> getItems(String typeHash, String server, String order){
         boolean needsAnd = false;
         StringBuilder query = new StringBuilder("SELECT * FROM item_database WHERE ");
         if(typeHash != null){
@@ -129,7 +137,7 @@ public class Man10ItemSearchV2API {
             if(needsAnd){
                 query.append(" AND ");
             }
-            query.append("server = '").append(server).append("'");
+            query.append("server = '").append(MySQLManager.escapeString(server)).append("'");
             needsAnd = true;
         }
         if(order != null){
@@ -142,6 +150,7 @@ public class Man10ItemSearchV2API {
             while(rs.next()){
                 SearchItemData data = new SearchItemData(rs.getString("final_editor_name"), rs.getString("final_editor_uuid"),
                         rs.getString("container_type"),
+                        rs.getString("container_id"),
                         rs.getInt("slot"),
                         rs.getInt("amount"),
                         rs.getString("server"),
@@ -159,6 +168,52 @@ public class Man10ItemSearchV2API {
                 }
                 result.add(data);
             }
+            rs.close();
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+
+        //create Container
+        HashMap<String, ArrayList<SearchItemData>> finalData = new HashMap<>();
+        for(SearchItemData datum: result){
+            if(!finalData.containsKey(datum.containerId)){
+                finalData.put(datum.containerId, new ArrayList<>());
+            }
+            finalData.get(datum.containerId).add(datum);
+        }
+
+        ArrayList<SearchContainerData> containerList = new ArrayList<>();
+        for(String key: finalData.keySet()){
+            containerList.add(new SearchContainerData(finalData.get(key)));
+        }
+
+        return containerList;
+    }
+
+    public ArrayList<UserItemCountData> getItemCountRanking(String typeHash, String server){
+        boolean needsAnd = false;
+        StringBuilder query = new StringBuilder("SELECT final_editor_name,final_editor_uuid,SUM(amount) AS total FROM item_database WHERE ");
+        if(typeHash != null){
+            query.append("item_hash = '").append(typeHash).append("'");
+            needsAnd = true;
+        }
+        if(server != null && !server.equalsIgnoreCase("all")){
+            if(needsAnd){
+                query.append(" AND ");
+            }
+            query.append("server = '").append(MySQLManager.escapeString(server)).append("'");
+            needsAnd = true;
+        }
+        query.append(" GROUP BY final_editor_uuid ORDER BY total DESC");
+
+        ArrayList<UserItemCountData> result = new ArrayList<>();
+        ResultSet rs = plugin.mysql.query(String.valueOf(query));
+        try{
+            while(rs.next()){
+                result.add(new UserItemCountData(rs.getString("final_editor_name"), rs.getString("final_editor_uuid"), rs.getInt("total")));
+            }
+            rs.close();
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
@@ -180,9 +235,11 @@ public class Man10ItemSearchV2API {
         ids.append(")");
         return plugin.mysql.execute(query + ids);
     }
-    public boolean deleteRecordInLocation(Location l, String containerType){
-        String query = "DELETE FROM item_database WHERE `container_type`='" + containerType + "' AND `world`='" + l.getWorld().getName() + "' AND `x` =" + l.getBlockX() + " AND `y` = " + l.getBlockY() + " AND `z` =" + l.getBlockZ() + ";";
-        return plugin.mysql.execute(query);
+    public void deleteRecordInLocation(Location l, String containerType){
+        plugin.threadPool.execute(()->{
+            String query = "DELETE FROM item_database WHERE `container_type`='" + containerType + "' AND `world`='" + l.getWorld().getName() + "' AND `x` =" + l.getBlockX() + " AND `y` = " + l.getBlockY() + " AND `z` =" + l.getBlockZ() + ";";
+            plugin.mysql.execute(query);
+        });
     }
 
     public HashMap<Integer, String> getCache(String containerId){

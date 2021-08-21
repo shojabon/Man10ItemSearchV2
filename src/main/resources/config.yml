@@ -1,0 +1,9 @@
+mysql:
+  host: 192.168.1.4
+  port: 3306
+  user: root
+  pass: password
+  db: man10_item_tracer
+
+prefix: "§6[§eMan10Search§dV2§6]"
+server: main
