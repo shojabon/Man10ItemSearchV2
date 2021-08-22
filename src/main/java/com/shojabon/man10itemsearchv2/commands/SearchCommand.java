@@ -379,6 +379,7 @@ public class SearchCommand implements @Nullable CommandExecutor {
             p.sendMessage("§e種別ハッシュ:§b " + item.getItemTypeMD5());
             return true;
         }
+        p.openInventory(plugin.getServer().createInventory(null, 9));
         help(p);
 
 

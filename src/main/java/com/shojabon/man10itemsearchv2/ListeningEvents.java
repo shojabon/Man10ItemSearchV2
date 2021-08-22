@@ -77,7 +77,7 @@ public class ListeningEvents implements @NotNull Listener {
         }
 
         //update user inventory
-        plugin.api.createLog(e.getPlayer().getInventory(), e.getInventory().getLocation(), e.getPlayer().getName(), e.getPlayer().getUniqueId(), "PLAYER");
+        plugin.api.createLog(e.getPlayer().getInventory(), e.getPlayer().getLocation(), e.getPlayer().getName(), e.getPlayer().getUniqueId(), "PLAYER");
         plugin.api.createLog(e.getPlayer().getEnderChest(), e.getPlayer().getLocation(), e.getPlayer().getName(), e.getPlayer().getUniqueId(), "ENDER_CHEST");
         if(inv instanceof PlayerInventory || e.getInventory().getType() == InventoryType.CRAFTING){
             return;

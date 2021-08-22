@@ -69,9 +69,11 @@ public class SItemStack {
         ItemStack clone = this.item.clone();
 
         //set durability to 0
-        ItemMeta itemMeta = clone.getItemMeta();
-        ((Damageable) itemMeta).setDamage(0);
-        clone.setItemMeta(itemMeta);
+        if(clone.hasItemMeta()){
+            ItemMeta itemMeta = clone.getItemMeta();
+            ((Damageable) itemMeta).setDamage(0);
+            clone.setItemMeta(itemMeta);
+        }
         clone.setAmount(1);
 
         return clone;
