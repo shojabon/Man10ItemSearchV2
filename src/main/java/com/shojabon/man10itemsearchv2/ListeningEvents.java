@@ -56,9 +56,11 @@ public class ListeningEvents implements @NotNull Listener {
         }
 
         InventoryHolder inv = e.getInventory().getHolder();
-        Inventory inventory;
+        Inventory inventory = null;
         if(inv instanceof StorageMinecart || inv instanceof HopperMinecart || inv == null) {
-            return;
+            if(e.getInventory().getType() != InventoryType.ENDER_CHEST){
+                return;
+            }
         }
 
         //if entity
@@ -76,6 +78,7 @@ public class ListeningEvents implements @NotNull Listener {
 
         //update user inventory
         plugin.api.createLog(e.getPlayer().getInventory(), e.getInventory().getLocation(), e.getPlayer().getName(), e.getPlayer().getUniqueId(), "PLAYER");
+        plugin.api.createLog(e.getPlayer().getEnderChest(), e.getPlayer().getLocation(), e.getPlayer().getName(), e.getPlayer().getUniqueId(), "ENDER_CHEST");
         if(inv instanceof PlayerInventory || e.getInventory().getType() == InventoryType.CRAFTING){
             return;
         }
@@ -86,8 +89,13 @@ public class ListeningEvents implements @NotNull Listener {
                 plugin.api.createLog(chest.getBlockInventory(), chest.getLocation(), e.getPlayer().getName(), e.getPlayer().getUniqueId(), e.getInventory().getType().name());
             }
             return;
+        }else if(e.getInventory().getType() == InventoryType.ENDER_CHEST){
+            plugin.api.createLog(e.getPlayer().getEnderChest(), e.getInventory().getLocation(), e.getPlayer().getName(), e.getPlayer().getUniqueId(), "ENDER_CHEST");
         }else{
             inventory = e.getInventory();
+        }
+        if(inventory == null){
+            return;
         }
         plugin.api.createLog(inventory, e.getInventory().getLocation(), e.getPlayer().getName(), e.getPlayer().getUniqueId(), e.getInventory().getType().name());
     }

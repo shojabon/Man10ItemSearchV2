@@ -7,3 +7,6 @@ mysql:
 
 prefix: "§6[§eMan10Search§dV2§6]"
 server: main
+
+openInvCommand: "/openinv <NAME>"
+openEnderCommand: "/openender <NAME>"

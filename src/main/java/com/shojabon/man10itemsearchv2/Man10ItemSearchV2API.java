@@ -7,6 +7,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Chest;
 import org.bukkit.block.DoubleChest;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import utils.MySQLAPI;
 import utils.SItemStack;
@@ -34,7 +35,7 @@ public class Man10ItemSearchV2API {
     }
 
     String generateContainerId(String type,Location l, String name){
-        if(type.equals("CRAFTING") || type.equals("PLAYER")){
+        if(type.equals("CRAFTING") || type.equals("PLAYER") || type.equals("ENDER_CHEST")){
             return type + "|" + name;
         }
         return plugin.server + "|" + type +"|"+l.getWorld().getName() + "|"+l.getBlockX() + "|"+ l.getBlockY() + "|"+ l.getBlockZ();
@@ -175,16 +176,18 @@ public class Man10ItemSearchV2API {
 
 
         //create Container
+        ArrayList<String> containerOrder = new ArrayList<>();
         HashMap<String, ArrayList<SearchItemData>> finalData = new HashMap<>();
         for(SearchItemData datum: result){
             if(!finalData.containsKey(datum.containerId)){
                 finalData.put(datum.containerId, new ArrayList<>());
+                containerOrder.add(datum.containerId);
             }
             finalData.get(datum.containerId).add(datum);
         }
 
         ArrayList<SearchContainerData> containerList = new ArrayList<>();
-        for(String key: finalData.keySet()){
+        for(String key: containerOrder){
             containerList.add(new SearchContainerData(finalData.get(key)));
         }
 

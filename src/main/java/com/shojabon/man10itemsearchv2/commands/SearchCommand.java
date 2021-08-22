@@ -10,6 +10,7 @@ import net.md_5.bungee.api.chat.*;
 import net.md_5.bungee.api.chat.hover.content.Text;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
@@ -48,9 +49,8 @@ public class SearchCommand implements @Nullable CommandExecutor {
         p.sendMessage(new ComponentBuilder().append("§e/msearch hash").event(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text("§e手に持っているアイテムの識別ハッシュを表示します"))).event(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/msearch hash")).create());
         p.sendMessage("");
         p.sendMessage("§d§l=====================================");
-        p.sendMessage("§e§lCreated By Sho0");
+        p.sendMessage("§eCreated By Sho0");
     }
-
 
     public SearchCommand(Man10ItemSearchV2 plugin){
         this.plugin = plugin;
@@ -64,6 +64,7 @@ public class SearchCommand implements @Nullable CommandExecutor {
         info.setBold(true);
         info.setColor(ChatColor.WHITE);
         info.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text("§f§l所有者:" + data.finalEditorName +
+                "\n§fUUID: " + data.finalEditorUUID +
                 "\n§7§l=========[保管情報]=========" +
                 "\n§f§lコンテナ種類: " + data.containerType +
                 "\n§f§lスロット番号: " + container.getSlotsString() +
@@ -83,7 +84,9 @@ public class SearchCommand implements @Nullable CommandExecutor {
         if(plugin.server.equalsIgnoreCase(data.server)){
             preview.setColor(ChatColor.LIGHT_PURPLE);
             if(data.containerType.equalsIgnoreCase("PLAYER")){
-                preview.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/msearch preview " + data.finalEditorUUID));
+                preview.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, plugin.openInvCommand.replace("<NAME>", data.finalEditorName)));
+            }else if(data.containerType.equalsIgnoreCase("ENDER_CHEST")){
+                preview.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, plugin.openEnderCommand.replace("<NAME>", data.finalEditorName)));
             }else{
                 preview.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/msearch preview " + data.world + " " + data.x + " " + data.y + " " + data.z));
             }
@@ -108,7 +111,7 @@ public class SearchCommand implements @Nullable CommandExecutor {
     }
 
     public void displayItemText(Player p, ArrayList<SearchContainerData> data, Component itemName, int page){
-        int colPerPage = 10;
+        int colPerPage = 15;
         int starting = page*colPerPage;
         if(starting-1 > data.size()){
             p.sendMessage(prefix + "§c§lページが存在しません");
@@ -154,10 +157,12 @@ public class SearchCommand implements @Nullable CommandExecutor {
         p.sendMessage(itemName);
         p.sendMessage("§7§l検索総数: §b§l" + total + " §7§l検索件数: §b§l" + data.size());
         p.sendMessage("§d§l===============================");
-        p.sendMessage("");
-        int target = starting + 10;
+        int target = starting + colPerPage;
         if(target > data.size()-1){
             target = data.size();
+        }
+        for(int i = 0; i < colPerPage-(target - starting); i++){
+            p.sendMessage("");
         }
         for(int i = starting; i < target; i++){
             p.sendMessage(createItemText(data.get(i)));
@@ -169,7 +174,7 @@ public class SearchCommand implements @Nullable CommandExecutor {
     }
 
     public void displayStatistics(Player p, ArrayList<UserItemCountData> data, int page){
-        int colPerPage = 10;
+        int colPerPage = 15;
         int starting = page*colPerPage;
         if(starting-1 > data.size()){
             p.sendMessage(prefix + "§c§lページが存在しません");
@@ -202,7 +207,7 @@ public class SearchCommand implements @Nullable CommandExecutor {
         TextComponent pageText = new TextComponent("・[" + (page+1) + "]・");
         pageText.setColor(ChatColor.WHITE);
         pageText.setBold(true);
-        int target = starting + 10;
+        int target = starting + colPerPage;
         if(target > data.size()-1){
             target = data.size();
         }
@@ -210,6 +215,9 @@ public class SearchCommand implements @Nullable CommandExecutor {
             p.sendMessage("");
         }
         p.sendMessage("§d§l===[所持数ランキング]===");
+        for(int i = 0; i < colPerPage-(target - starting); i++){
+            p.sendMessage("");
+        }
         for(int i = starting; i < target; i++){
             p.sendMessage("§b§l" + data.get(i).name + " §a§l" + data.get(i).count + "個");
         }
@@ -269,7 +277,7 @@ public class SearchCommand implements @Nullable CommandExecutor {
             }
         }
         if(args[0].equalsIgnoreCase("preview")){
-            if(args.length != 5 && args.length != 2){
+            if(args.length != 5){
                 p.sendMessage(prefix  +"§c§l引数が足りません");
                 return false;
             }
@@ -289,9 +297,14 @@ public class SearchCommand implements @Nullable CommandExecutor {
                     }
                     plugin.userInPreview.add(uuid);
                     Inventory original = ((InventoryHolder) b.getState()).getInventory();
-                    Inventory clone = plugin.getServer().createInventory(null, original.getSize());
+                    int size = original.getSize();
+                    if(size < 9){
+                        size = 9;
+                    }
+                    Inventory clone = plugin.getServer().createInventory(null, size);
                     ItemStack[] items = original.getContents().clone();
                     if(items == null){
+                        plugin.userInPreview.remove(uuid);
                         p.sendMessage(prefix  +"§c§lインベントリがエラーです");
                         return false;
                     }
@@ -299,23 +312,8 @@ public class SearchCommand implements @Nullable CommandExecutor {
                     p.openInventory(clone);
                     return true;
                 }catch (NumberFormatException e){
+                    plugin.userInPreview.remove(uuid);
                     p.sendMessage(prefix  +"§c§l座標位置は数字でなくてはなりません");
-                    return false;
-                }
-            }
-            if(args.length == 2){
-                //if player
-                try{
-                    Player target = plugin.getServer().getPlayer(UUID.fromString(args[1]));
-                    if(target == null){
-                        p.sendMessage(prefix  +"§c§lプレイヤーが存在しません");
-                        return false;
-                    }
-                    plugin.userInPreview.add(uuid);
-                    p.openInventory(target.getInventory());
-                    return true;
-                }catch (Exception e){
-                    p.sendMessage(prefix  +"§c§lUUID parse エラー");
                     return false;
                 }
             }

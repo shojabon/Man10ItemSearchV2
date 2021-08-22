@@ -20,6 +20,9 @@ public final class Man10ItemSearchV2 extends JavaPlugin {
 
     public LinkedBlockingQueue<String> mysqlExecutionQueue = new LinkedBlockingQueue<>();
 
+    public String openInvCommand;
+    public String openEnderCommand;
+
     public ExecutorService threadPool;
 
     public String tableCreate = "CREATE TABLE IF NOT EXISTS `item_database` (\n" +
@@ -54,6 +57,8 @@ public final class Man10ItemSearchV2 extends JavaPlugin {
         mysql.execute(tableCreate);
         mysql.close();
         server = getConfig().getString("server");
+        openInvCommand = getConfig().getString("openInvCommand");
+        openEnderCommand = getConfig().getString("openEnderCommand");
         Objects.requireNonNull(getCommand("msearch")).setExecutor(new SearchCommand(this));
         getServer().getPluginManager().registerEvents(new ListeningEvents(this), this);
         threadPool = Executors.newCachedThreadPool();
