@@ -1,9 +1,11 @@
 package com.shojabon.man10itemsearchv2;
 
 import com.shojabon.man10itemsearchv2.commands.SearchCommand;
-import com.shojabon.man10itemsearchv2.data.SearchContainerData;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
-import utils.MySQLAPI;
+import utils.MySQL.MySQLAPI;
+import utils.MySQL.MySQLCachedResultSet;
+import utils.MySQL.MySQLQueue;
 
 import java.util.ArrayList;
 import java.util.Objects;
@@ -18,7 +20,7 @@ public final class Man10ItemSearchV2 extends JavaPlugin {
     public String server = "null";
     public ArrayList<UUID> userInPreview = new ArrayList<>();
 
-    public LinkedBlockingQueue<String> mysqlExecutionQueue = new LinkedBlockingQueue<>();
+    public MySQLQueue mysqlQueue = null;
 
     public String openInvCommand;
     public String openEnderCommand;
@@ -53,39 +55,27 @@ public final class Man10ItemSearchV2 extends JavaPlugin {
         // Plugin startup logic
         saveDefaultConfig();
         api = new Man10ItemSearchV2API(this);
-        MySQLAPI mysql = new MySQLAPI(this);
-        mysql.execute(tableCreate);
-        mysql.close();
+
+        mysqlQueue = new MySQLQueue(1, 1, this);
+
+
+        mysqlQueue.execute(tableCreate);
+
         server = getConfig().getString("server");
         openInvCommand = getConfig().getString("openInvCommand");
         openEnderCommand = getConfig().getString("openEnderCommand");
         Objects.requireNonNull(getCommand("msearch")).setExecutor(new SearchCommand(this));
         getServer().getPluginManager().registerEvents(new ListeningEvents(this), this);
         threadPool = Executors.newCachedThreadPool();
-        new Thread(this::mysqlQueueTask).start();
-    }
-
-    synchronized void mysqlQueueTask(){
-        MySQLAPI manager = new MySQLAPI(this);
-        while(true){
-            try {
-                String take = mysqlExecutionQueue.take();
-                if(take.equalsIgnoreCase("quit")){
-                    manager.close();
-                    break;
-                }
-                manager.execute(take);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
     }
 
     @Override
     public void onDisable() {
         // Plugin shutdown logic
-        threadPool.shutdown();
-        mysqlExecutionQueue.add("quit");
+        if(threadPool != null){
+            threadPool.shutdown();
+        }
+        mysqlQueue.stop();
     }
 
 

@@ -1,5 +1,6 @@
 package com.shojabon.man10itemsearchv2;
 
+import com.google.common.cache.Cache;
 import com.shojabon.man10itemsearchv2.data.SearchContainerData;
 import com.shojabon.man10itemsearchv2.data.SearchItemData;
 import com.shojabon.man10itemsearchv2.data.UserItemCountData;
@@ -7,9 +8,10 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Chest;
 import org.bukkit.block.DoubleChest;
-import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-import utils.MySQLAPI;
+import utils.MySQL.MySQLAPI;
+import utils.MySQL.MySQLCachedResultSet;
+import utils.MySQL.MySQLQueue;
 import utils.SItemStack;
 
 import java.sql.ResultSet;
@@ -38,6 +40,9 @@ public class Man10ItemSearchV2API {
         if(type.equals("CRAFTING") || type.equals("PLAYER") || type.equals("ENDER_CHEST")){
             return type + "|" + name;
         }
+        if(l == null){
+            return null;
+        }
         return plugin.server + "|" + type +"|"+l.getWorld().getName() + "|"+l.getBlockX() + "|"+ l.getBlockY() + "|"+ l.getBlockZ();
     }
 
@@ -47,6 +52,9 @@ public class Man10ItemSearchV2API {
         plugin.threadPool.execute(()-> {
             HashMap<String, Object> payload = new HashMap<>();
             String containerId = generateContainerId(containerType, l, name);
+            if(containerId == null){
+                return;
+            }
 
 
             HashMap<Integer, String> localCache = getCache(containerId);
@@ -57,10 +65,17 @@ public class Man10ItemSearchV2API {
             payload.put("final_editor_uuid", uuid.toString());
             payload.put("container_type", containerType);
             payload.put("server", plugin.server);
-            payload.put("world", l.getWorld().getName());
-            payload.put("x", l.getBlockX());
-            payload.put("y", l.getBlockY());
-            payload.put("z", l.getBlockZ());
+            if(l != null){
+                payload.put("world", l.getWorld().getName());
+                payload.put("x", l.getBlockX());
+                payload.put("y", l.getBlockY());
+                payload.put("z", l.getBlockZ());
+            }else{
+                payload.put("world", "");
+                payload.put("x", 0);
+                payload.put("y", 0);
+                payload.put("z", 0);
+            }
 
             ArrayList<HashMap<String, Object>> payloads = new ArrayList<>();
             ArrayList<Integer> deleteSlot = new ArrayList<>();
@@ -121,7 +136,7 @@ public class Man10ItemSearchV2API {
             if(payloads.size() == 0){
                 return;
             }
-            plugin.mysqlExecutionQueue.add(MySQLAPI.buildInsertQuery(payloads, "item_database"));
+            plugin.mysqlQueue.execute(MySQLAPI.buildInsertQuery(payloads, "item_database"));
         });
 
     }
@@ -144,34 +159,27 @@ public class Man10ItemSearchV2API {
             query.append("ORDER BY ").append(order).append(" DESC");
         }
         ArrayList<SearchItemData> result = new ArrayList<>();
-        MySQLAPI manager = new MySQLAPI(plugin);
-        ResultSet rs = manager.query(String.valueOf(query));
-        try{
-            while(rs.next()){
-                SearchItemData data = new SearchItemData(rs.getString("final_editor_name"), rs.getString("final_editor_uuid"),
-                        rs.getString("container_type"),
-                        rs.getString("container_id"),
-                        rs.getInt("slot"),
-                        rs.getInt("amount"),
-                        rs.getString("server"),
-                        null,
-                        rs.getString("date_time"),
-                        rs.getString("world"),
-                        rs.getInt("x"),
-                        rs.getInt("y"),
-                        rs.getInt("z"));
-                if(plugin.server.equalsIgnoreCase(rs.getString("server"))){
-                    World w = plugin.getServer().getWorld(rs.getString("world"));
-                    if(w != null){
-                        data.location = new Location(w, rs.getDouble("x"), rs.getDouble("y"), rs.getDouble("z"));
-                    }
+        ArrayList<MySQLCachedResultSet> results = plugin.mysqlQueue.query(String.valueOf(query));
+        for(MySQLCachedResultSet rs: results){
+            SearchItemData data = new SearchItemData(rs.getString("final_editor_name"), rs.getString("final_editor_uuid"),
+                    rs.getString("container_type"),
+                    rs.getString("container_id"),
+                    rs.getInt("slot"),
+                    rs.getInt("amount"),
+                    rs.getString("server"),
+                    null,
+                    rs.getString("date_time"),
+                    rs.getString("world"),
+                    rs.getInt("x"),
+                    rs.getInt("y"),
+                    rs.getInt("z"));
+            if(plugin.server.equalsIgnoreCase(rs.getString("server"))){
+                World w = plugin.getServer().getWorld(rs.getString("world"));
+                if(w != null){
+                    data.location = new Location(w, rs.getInt("x"), rs.getInt("y"), rs.getInt("z"));
                 }
-                result.add(data);
             }
-            rs.close();
-            manager.close();
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+            result.add(data);
         }
 
 
@@ -211,25 +219,18 @@ public class Man10ItemSearchV2API {
         query.append(" GROUP BY final_editor_uuid ORDER BY total DESC");
 
         ArrayList<UserItemCountData> result = new ArrayList<>();
-        MySQLAPI manager = new MySQLAPI(plugin);
-        ResultSet rs = manager.query(String.valueOf(query));
-        try{
-            while(rs.next()){
-                result.add(new UserItemCountData(rs.getString("final_editor_name"), rs.getString("final_editor_uuid"), rs.getInt("total")));
-            }
-            rs.close();
-            manager.close();
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
+        ArrayList<MySQLCachedResultSet> results = plugin.mysqlQueue.query(String.valueOf(query));
+        for(MySQLCachedResultSet rs: results){
+            result.add(new UserItemCountData(rs.getString("final_editor_name"), rs.getString("final_editor_uuid"), rs.getInt("total")));
         }
         return result;
     }
 
     //internal functions
 
-    public boolean deleteRecords(String containerId , ArrayList<Integer> slots){
+    public void deleteRecords(String containerId , ArrayList<Integer> slots){
         if(slots.size() == 0){
-            return true;
+            return;
         }
         String query = "DELETE FROM item_database WHERE container_id = \"" + containerId + "\" AND slot IN ";
         StringBuilder ids = new StringBuilder("(");
@@ -238,12 +239,12 @@ public class Man10ItemSearchV2API {
         }
         ids.deleteCharAt(ids.length()-1);
         ids.append(")");
-        return plugin.mysqlExecutionQueue.add(query + ids);
+        plugin.mysqlQueue.execute(query + ids);
     }
     public void deleteRecordInLocation(Location l, String containerType){
         plugin.threadPool.execute(()->{
             String query = "DELETE FROM item_database WHERE `container_type`='" + containerType + "' AND `world`='" + l.getWorld().getName() + "' AND `x` =" + l.getBlockX() + " AND `y` = " + l.getBlockY() + " AND `z` =" + l.getBlockZ() + ";";
-            plugin.mysqlExecutionQueue.add(query);
+            plugin.mysqlQueue.execute(query);
         });
     }
 
@@ -251,17 +252,10 @@ public class Man10ItemSearchV2API {
         if(cache.containsKey(containerId)){
            return cache.get(containerId);
         }
-        MySQLAPI manager = new MySQLAPI(plugin);
         HashMap<Integer, String> container = new HashMap<>();
-        try {
-            ResultSet rs = manager.query("SELECT slot,full_item_hash FROM item_database WHERE container_id = \"" + containerId + "\" LIMIT 200;");
-            while(rs.next()){
-                container.put(rs.getInt("slot"), rs.getString("full_item_hash"));
-            }
-            rs.close();
-            manager.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
+        ArrayList<MySQLCachedResultSet> results = plugin.mysqlQueue.query("SELECT slot,full_item_hash FROM item_database WHERE container_id = \"" + containerId + "\" LIMIT 200;");
+        for(MySQLCachedResultSet rs: results){
+            container.put(rs.getInt("slot"), rs.getString("full_item_hash"));
         }
         cache.put(containerId, container);
         return container;

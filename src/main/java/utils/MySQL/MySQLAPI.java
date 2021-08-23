@@ -1,4 +1,4 @@
-package utils;
+package utils.MySQL;
 
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
@@ -10,11 +10,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
 
-/**
- * Created by takatronix on 2017/03/05.
- */
-
 public class MySQLAPI {
+
     Connection connection = null;
     Statement statement = null;
 
@@ -70,6 +67,31 @@ public class MySQLAPI {
             this.plugin.getLogger().info(query);
         }
         return rs;
+    }
+
+    public ArrayList<MySQLCachedResultSet> cachedQuery(String query){
+        ArrayList<MySQLCachedResultSet> result = new ArrayList<>();
+        ResultSet rs = query(query);
+        if(rs == null){
+            return new ArrayList<>();
+        }
+        try {
+            while(rs.next()){
+                HashMap<String, Object> localData = new HashMap<>();
+                ResultSetMetaData meta = rs.getMetaData();
+                for(int i = 1; i < meta.getColumnCount()+1; i++){
+                    String colName = meta.getColumnName(i);
+                    localData.put(colName, rs.getObject(colName));
+                }
+                result.add(new MySQLCachedResultSet(localData));
+            }
+            rs.close();
+            this.close();
+            return result;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     //build mysql query
@@ -129,7 +151,6 @@ public class MySQLAPI {
                 .replace("'", "\\'")
                 .replace("\"", "\\\"");
     }
-
 
     public void close(){
 

@@ -8,10 +8,7 @@ import net.kyori.adventure.text.Component;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.chat.*;
 import net.md_5.bungee.api.chat.hover.content.Text;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -379,7 +376,6 @@ public class SearchCommand implements @Nullable CommandExecutor {
             p.sendMessage("§e種別ハッシュ:§b " + item.getItemTypeMD5());
             return true;
         }
-        p.openInventory(plugin.getServer().createInventory(null, 9));
         help(p);
 
 
