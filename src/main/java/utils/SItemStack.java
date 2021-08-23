@@ -27,6 +27,10 @@ public class SItemStack {
         this.item = item;
     }
 
+    public SItemStack(Material type){
+        this.item = new ItemStack(type);
+    }
+
     public ItemStack build(){
         return this.item;
     }

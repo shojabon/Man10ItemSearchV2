@@ -15,17 +15,23 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import utils.SInventory.SInventory;
+import utils.SInventory.SInventoryItem;
 import utils.SItemStack;
 import utils.SStringBuilder;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 
 public class SearchCommand implements @Nullable CommandExecutor {
@@ -379,6 +385,47 @@ public class SearchCommand implements @Nullable CommandExecutor {
             p.sendMessage("§e種別ハッシュ:§b " + item.getItemTypeMD5());
             return true;
         }
+
+        SInventory inv = new SInventory("test1", 3, plugin);
+        SInventory inv2 = new SInventory("test2", 3, plugin);
+        SInventory inv3 = new SInventory("test3", 3, plugin);
+
+
+
+
+        SInventoryItem item = new SInventoryItem(new SItemStack(Material.BLUE_STAINED_GLASS).setDisplayName(new SStringBuilder().gold().text("BLOCK!").build()).build());
+        item.clickable(false);
+        item.setEvent(a -> {
+            p.sendMessage("1 " + a.getSlot());
+            inv.moveToMenu(p, inv2);
+
+        });
+        inv.fillItem( item);
+
+
+        SInventoryItem item2 = new SInventoryItem(new SItemStack(Material.RED_STAINED_GLASS).setDisplayName(new SStringBuilder().red().text("BLOCK!").build()).build());
+        item2.clickable(false);
+        item2.setEvent(a -> {
+            p.sendMessage("2 " + a.getSlot());
+            inv2.moveToMenu(p, inv3);
+        });
+        inv2.setOnCloseEvent(e -> {
+            inv2.moveToMenu(p, inv);
+        });
+        inv2.fillItem(item2);
+
+        SInventoryItem item3 = new SInventoryItem(new SItemStack(Material.YELLOW_STAINED_GLASS).setDisplayName(new SStringBuilder().yellow().text("BLOCK!").build()).build());
+        item3.clickable(false);
+        item3.setEvent(a -> {
+            p.sendMessage("3 " + a.getSlot());
+        });
+        inv3.setOnCloseEvent(e -> {
+            inv3.moveToMenu(p, inv2);
+        });
+        inv3.fillItem( item3);
+
+
+        inv.open(p);
         help(p);
 
 

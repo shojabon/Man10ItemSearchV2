@@ -15,7 +15,7 @@ public class SInventoryItem {
 
     public SInventoryItem(ItemStack item){
         this.item = item;
-        this.setEvent(event -> {if(clickable) event.setCancelled(true);});
+        this.setEvent(event -> {if(!clickable) event.setCancelled(true);});
     }
 
     public SInventoryItem setEvent(Consumer<InventoryClickEvent> consumer){
@@ -32,6 +32,10 @@ public class SInventoryItem {
         for(Consumer<InventoryClickEvent> event: events){
             event.accept(e);
         }
+    }
+
+    public ItemStack getItemStack(){
+        return item;
     }
 
 
