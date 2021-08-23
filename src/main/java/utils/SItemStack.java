@@ -13,6 +13,7 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -24,9 +25,11 @@ public class SItemStack {
         this.item = item;
     }
 
-    public ItemStack getItemStack(){
+    public ItemStack build(){
         return this.item;
     }
+
+    //identification methods
 
     public String getBase64(ItemStack item){
         try {
@@ -104,8 +107,48 @@ public class SItemStack {
         return Objects.requireNonNull(this.item.getItemMeta().displayName());
     }
 
+    public SItemStack setDisplayName(Component name){
+        ItemMeta itemMeta = this.item.getItemMeta();
+        itemMeta.displayName(name);
+        this.item.setItemMeta(itemMeta);
+        return this;
+    }
+
+    public SItemStack setAmount(int amount){
+        this.item.setAmount(amount);
+        return this;
+    }
+
     public List<Component> getLore(){
         return this.item.getItemMeta().lore();
+    }
+
+    public SItemStack setLore(List<Component> lore){
+        ItemMeta itemMeta = this.item.getItemMeta();
+        itemMeta.lore(lore);
+        this.item.setItemMeta(itemMeta);
+        return this;
+    }
+
+    public SItemStack addLore(Component lore){
+        ItemMeta itemMeta = this.item.getItemMeta();
+        List<Component> lores = new ArrayList<>();
+        lores.add(lore);
+        itemMeta.lore(lores);
+        this.item.setItemMeta(itemMeta);
+        return this;
+    }
+
+    public int getDamage(){
+        ItemMeta itemMeta = this.item.getItemMeta();
+        return ((Damageable) itemMeta).getDamage();
+    }
+
+    public SItemStack setDamage(int damage){
+        ItemMeta itemMeta = this.item.getItemMeta();
+        ((Damageable) itemMeta).setDamage(damage);
+        this.item.setItemMeta(itemMeta);
+        return this;
     }
 
     public int getAmount(){
