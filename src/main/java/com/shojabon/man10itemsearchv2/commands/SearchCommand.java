@@ -5,6 +5,7 @@ import com.shojabon.man10itemsearchv2.data.SearchContainerData;
 import com.shojabon.man10itemsearchv2.data.SearchItemData;
 import com.shojabon.man10itemsearchv2.data.UserItemCountData;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.chat.*;
 import net.md_5.bungee.api.chat.hover.content.Text;
@@ -19,7 +20,9 @@ import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import utils.SInventory.SInventory;
 import utils.SItemStack;
+import utils.SStringBuilder;
 
 import java.util.ArrayList;
 import java.util.HashMap;

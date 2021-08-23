@@ -16,6 +16,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class SItemStack {
 
@@ -96,7 +98,9 @@ public class SItemStack {
         return this.item.getType();
     }
 
-    public Component getDisplayName(){
+    //==================== display name =======================
+
+    public String getDisplayName(){
         if(!this.item.hasItemMeta()){
             return null;
         }
@@ -104,38 +108,43 @@ public class SItemStack {
             return null;
         }
 
-        return Objects.requireNonNull(this.item.getItemMeta().displayName());
+        return this.item.getItemMeta().getDisplayName();
     }
 
-    public SItemStack setDisplayName(Component name){
+    public SItemStack setDisplayName(String name){
         ItemMeta itemMeta = this.item.getItemMeta();
-        itemMeta.displayName(name);
+        itemMeta.setDisplayName(name);
         this.item.setItemMeta(itemMeta);
         return this;
+    }
+
+    public SItemStack addDisplayName(String name){
+        String currentName = getDisplayName();
+        return setDisplayName(currentName + name);
+    }
+
+    //========================================================
+
+    public SItemStack setLore(List<String> lore){
+        ItemMeta itemMeta = this.item.getItemMeta();
+        itemMeta.setLore(lore);
+        this.item.setItemMeta(itemMeta);
+        return this;
+    }
+
+    public SItemStack addLore(String lore){
+        List<String> lores = getLore();
+        lores.add(lore);
+        return setLore(lores);
+    }
+
+    public List<String> getLore(){
+        ItemMeta itemMeta = this.item.getItemMeta();
+        return itemMeta.getLore();
     }
 
     public SItemStack setAmount(int amount){
         this.item.setAmount(amount);
-        return this;
-    }
-
-    public List<Component> getLore(){
-        return this.item.getItemMeta().lore();
-    }
-
-    public SItemStack setLore(List<Component> lore){
-        ItemMeta itemMeta = this.item.getItemMeta();
-        itemMeta.lore(lore);
-        this.item.setItemMeta(itemMeta);
-        return this;
-    }
-
-    public SItemStack addLore(Component lore){
-        ItemMeta itemMeta = this.item.getItemMeta();
-        List<Component> lores = new ArrayList<>();
-        lores.add(lore);
-        itemMeta.lore(lores);
-        this.item.setItemMeta(itemMeta);
         return this;
     }
 
