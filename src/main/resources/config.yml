@@ -10,3 +10,6 @@ server: main
 
 openInvCommand: "/openinv <NAME>"
 openEnderCommand: "/openender <NAME>"
+
+#ticks
+loggingInterval: 864000

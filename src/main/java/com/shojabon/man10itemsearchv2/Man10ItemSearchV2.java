@@ -1,23 +1,15 @@
 package com.shojabon.man10itemsearchv2;
 
 import com.shojabon.man10itemsearchv2.commands.SearchCommand;
+import com.shojabon.mcutils.Utils.MySQL.ThreadedMySQLAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
-import utils.MySQL.MySQLAPI;
-import utils.MySQL.MySQLCachedResultSet;
-import utils.MySQL.MySQLQueue;
-import utils.MySQL.ThreadedQueryRequest;
-import utils.SInventory.SInventory;
-import utils.SInventory.SInventoryItem;
 
-import java.awt.*;
 import java.util.ArrayList;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.Consumer;
 
 public final class Man10ItemSearchV2 extends JavaPlugin {
 
@@ -25,7 +17,7 @@ public final class Man10ItemSearchV2 extends JavaPlugin {
     public String server = "null";
     public ArrayList<UUID> userInPreview = new ArrayList<>();
 
-    public MySQLQueue mysqlQueue = null;
+    public ThreadedMySQLAPI mysql = null;
 
     public String openInvCommand;
     public String openEnderCommand;
@@ -48,7 +40,22 @@ public final class Man10ItemSearchV2 extends JavaPlugin {
             "\t`item_hash` VARCHAR(64) NULL DEFAULT NULL COLLATE 'utf8mb4_0900_ai_ci',\n" +
             "\t`amount` INT(10) NULL DEFAULT NULL,\n" +
             "\t`item_type` VARCHAR(64) NULL DEFAULT NULL COLLATE 'utf8mb4_0900_ai_ci',\n" +
+            "\t`custom_model_data` INT(10) NULL DEFAULT NULL,\n" +
             "\t`date_time` DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n" +
+            "\tPRIMARY KEY (`id`) USING BTREE\n" +
+            ")\n" +
+            "COLLATE='utf8mb4_0900_ai_ci'\n" +
+            "ENGINE=InnoDB\n" +
+            ";\n";
+
+    public String tableCreate2 = "CREATE TABLE IF NOT EXISTS`item_log` (\n" +
+            "\t`id` INT(10) NOT NULL AUTO_INCREMENT,\n" +
+            "\t`final_editor_name` VARCHAR(64) NULL DEFAULT NULL COLLATE 'utf8mb4_0900_ai_ci',\n" +
+            "\t`final_editor_uuid` VARCHAR(64) NULL DEFAULT NULL COLLATE 'utf8mb4_0900_ai_ci',\n" +
+            "\t`item_hash` VARCHAR(64) NULL DEFAULT NULL COLLATE 'utf8mb4_0900_ai_ci',\n" +
+            "\t`item_count` INT(10) NULL DEFAULT NULL,\n" +
+            "\t`custom_model_data` INT(10) NULL DEFAULT NULL,\n" +
+            "\t`date_time` DATETIME NULL DEFAULT NULL,\n" +
             "\tPRIMARY KEY (`id`) USING BTREE\n" +
             ")\n" +
             "COLLATE='utf8mb4_0900_ai_ci'\n" +
@@ -61,9 +68,14 @@ public final class Man10ItemSearchV2 extends JavaPlugin {
         saveDefaultConfig();
         api = new Man10ItemSearchV2API(this);
 
-        mysqlQueue = new MySQLQueue(1, 1, this);
+        mysql = new ThreadedMySQLAPI(this);
 
-        mysqlQueue.execute(tableCreate);
+        mysql.execute(tableCreate);
+        mysql.execute(tableCreate2);
+        //loggin
+        Bukkit.getScheduler().runTaskTimer(this, () -> {
+            api.logWholeServerItemCount();
+        }, getConfig().getInt("loggingInterval"), getConfig().getInt("loggingInterval"));
 
         server = getConfig().getString("server");
         openInvCommand = getConfig().getString("openInvCommand");
@@ -76,10 +88,16 @@ public final class Man10ItemSearchV2 extends JavaPlugin {
     @Override
     public void onDisable() {
         // Plugin shutdown logic
+
+        //unexpected shutdown
+        long lastLog = getConfig().getLong("lastLog");
+        if(System.currentTimeMillis()/1000L - lastLog >= 30*60){
+            api.logWholeServerItemCount();
+        }
+
         if(threadPool != null){
             threadPool.shutdown();
         }
-        mysqlQueue.stop();
     }
 
 
