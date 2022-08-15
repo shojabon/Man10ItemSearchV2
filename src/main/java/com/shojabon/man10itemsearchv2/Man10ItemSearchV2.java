@@ -3,6 +3,7 @@ package com.shojabon.man10itemsearchv2;
 import com.shojabon.man10itemsearchv2.commands.SearchCommand;
 import com.shojabon.mcutils.Utils.MySQL.ThreadedMySQLAPI;
 import org.bukkit.Bukkit;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
@@ -16,6 +17,8 @@ public final class Man10ItemSearchV2 extends JavaPlugin {
     public Man10ItemSearchV2API api;
     public String server = "null";
     public ArrayList<UUID> userInPreview = new ArrayList<>();
+
+    public FileConfiguration config;
 
     public ThreadedMySQLAPI mysql = null;
 
@@ -69,6 +72,7 @@ public final class Man10ItemSearchV2 extends JavaPlugin {
         api = new Man10ItemSearchV2API(this);
 
         mysql = new ThreadedMySQLAPI(this);
+        config = getConfig();
 
         mysql.execute(tableCreate);
         mysql.execute(tableCreate2);
@@ -90,7 +94,7 @@ public final class Man10ItemSearchV2 extends JavaPlugin {
         // Plugin shutdown logic
 
         //unexpected shutdown
-        long lastLog = getConfig().getLong("lastLog");
+        long lastLog = this.config.getLong("lastLog");
         if(System.currentTimeMillis()/1000L - lastLog >= 30*60){
             api.logWholeServerItemCount();
         }
